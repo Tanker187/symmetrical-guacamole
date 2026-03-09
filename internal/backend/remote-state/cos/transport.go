@@ -47,21 +47,16 @@ func (me *LogRoundTripper) RoundTrip(request *http.Request) (response *http.Resp
 	}
 
 	request.Header.Set("X-TC-RequestClient", ReqClient)
-	inBytes = []byte(fmt.Sprintf("%s, request: ", request.Header[headName]))
+	// Do not log raw header values or request body to avoid leaking sensitive data.
+	// Instead, log only a minimal, non-sensitive summary of the request.
+	inBytes = []byte("request sent via LogRoundTripper")
 	requestBody, errRet := ioutil.ReadAll(bodyReader)
 	if errRet != nil {
 		return
 	}
-	inBytes = append(inBytes, requestBody...)
 
 	headName = "X-TC-Region"
-	appendMessage := []byte(fmt.Sprintf(
-		", (host %+v, region:%+v)",
-		request.Header["Host"],
-		request.Header[headName],
-	))
-
-	inBytes = append(inBytes, appendMessage...)
+	_ = headName // retained to avoid unused variable if future logic is added
 
 	response, errRet = http.DefaultTransport.RoundTrip(request)
 	if errRet != nil {
