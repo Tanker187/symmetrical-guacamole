@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -186,7 +187,23 @@ func (c *RemoteClient) Put(data []byte) tfdiags.Diagnostics {
 
 // chunkPayload splits the state payload into byte arrays of the given size
 func chunkPayload(buf []byte, size int) [][]byte {
-	chunks := make([][]byte, 0, len(buf)/size+1)
+	if size <= 0 {
+		panic("chunkPayload: size must be greater than zero")
+	}
+
+	// Calculate an initial capacity hint for the chunks slice without
+	// overflowing the int type, even if len(buf) is very large.
+	bufLen := len(buf)
+	chunkCount := bufLen/size + 1
+	maxChunks := math.MaxInt / size
+	if maxChunks <= 0 {
+		// Extremely small MaxInt relative to size; fall back to minimal capacity.
+		chunkCount = 1
+	} else if chunkCount > maxChunks {
+		chunkCount = maxChunks
+	}
+
+	chunks := make([][]byte, 0, chunkCount)
 	for len(buf) >= size {
 		var chunk []byte
 		chunk, buf = buf[:size], buf[size:]
